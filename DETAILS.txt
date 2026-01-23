@@ -1,0 +1,173 @@
+Rewards360 — Screens & APIs
+
+1) FRONTEND SCREENS / COMPONENTS
+
+A. Login (src/pages/auth/Login.jsx)
+   Fields:
+   - email (string, required, valid email)
+   - password (string, required, min 8)
+
+   Behavior:
+   - POST /api/auth/login
+   - On success: localStorage.token + localStorage.role set; navigate to /user
+   - On failure: show "Invalid credentials"
+
+B. ProtectedRoute (src/components/ProtectedRoute.jsx)
+   - Guards /user routes
+   - Requires localStorage.token and role === "USER"
+   - Otherwise redirects to /login
+
+C. Dashboard (src/pages/user/Dashboard.jsx)
+   Sections:
+   - Profile Summary:
+     * name (string)
+     * email (string)
+     * profile.loyaltyTier (string: Bronze/Silver/Gold)
+     * profile.pointsBalance (int)
+   - Recent Transactions (table):
+     * date (YYYY-MM-DD)
+     * type (CLAIM | REDEMPTION | PURCHASE)
+     * pointsEarned (int)
+     * pointsRedeemed (int)
+     * note (string)
+
+   API calls:
+   - GET /api/user/me
+   - GET /api/user/transactions
+
+D. Axios Client (src/api/client.js)
+   - Base URL from Vite env: VITE_API_BASE_URL + '/api'
+   - Adds Authorization: Bearer <token> if present
+
+(Optionally present in extended UI)
+E. Admin Screens (if implemented)
+   - Offers (list/create/edit toggle active)
+   - Campaigns (list/create/edit)
+   - Fraud Monitor (alerts)
+   - Audit Logs
+
+
+2) BACKEND API LIST
+
+Base path: http://localhost:8080/api
+
+AUTH:
+1) POST /auth/register
+   Request (JSON):
+   {
+     "name": "Test User",
+     "email": "user123@example.com",
+     "phone": "9876543210",    // exactly 10 digits
+     "password": "P@ssw0rd1",  // min 8
+     "role": "USER",           // or "ADMIN"
+     "preferences": "Fashion,Electronics",
+     "communication": "Email"
+   }
+   Success: 200 OK (empty body)
+
+   Validation Errors: 400 Bad Request (message indicates field failing)
+   Duplicate email: 500 or 409 depending on JPA exception mapping
+
+2) POST /auth/login
+   Request:
+   { "email": "user123@example.com", "password": "P@ssw0rd1" }
+   Response 200:
+   { "token": "<jwt>", "role": "USER" }
+   Errors:
+   401 Invalid credentials
+
+USER (requires JWT, role USER):
+3) GET /user/me
+   Response 200:
+   {
+     "id": 1,
+     "name": "Test User",
+     "email": "user123@example.com",
+     "phone": "9876543210",
+     "role": "USER",
+     "profile": {
+       "id": 1,
+       "loyaltyTier": "Bronze",
+       "pointsBalance": 2800,
+       "nextExpiry": null,
+       "preferences": "Fashion,Electronics",
+       "communication": "Email"
+     }
+   }
+
+4) GET /user/transactions
+   Response 200: [ { "id": 10, "date": "2025-12-11", "type": "CLAIM", "pointsEarned": 50, "pointsRedeemed": 0, "store": "Online", "note": "Activity A", "externalId": "CLAIM-001", "expiry": null } ... (max 10) ]
+
+(If extended endpoints exist in your branch; otherwise ignore)
+5) POST /user/claim
+   Request:
+   { "activityCode": "DAILY", "points": 50, "note": "Daily login bonus" }
+   Response 200: updated profile/transaction info
+
+6) POST /user/redeem
+   Request:
+   { "offerId": 101, "store": "Flipkart" }
+   Response 200: redemption confirmation
+
+ADMIN (requires JWT, role ADMIN) — optional module:
+7) GET /admin/offers
+8) POST /admin/offers
+9) PATCH /admin/offers/{id}/activate
+10) GET /admin/campaigns
+11) POST /admin/campaigns
+12) GET /admin/fraud/alerts
+13) GET /admin/audit-logs
+
+
+
+3) DATA MODEL (Entities)
+
+users
+- id (bigint, PK, auto)
+- name (varchar)
+- email (varchar, unique)
+- phone (varchar)
+- password (varchar, BCrypt)
+- role (enum: ADMIN | USER)
+
+customer_profile
+- id (bigint, PK, auto)
+- loyalty_tier (varchar)
+- points_balance (int)
+- next_expiry (date, nullable)
+- preferences (varchar)
+- communication (varchar)
+- user_id (bigint, unique, FK -> users.id)
+
+transaction
+- id (bigint, PK, auto)
+- external_id (varchar)
+- type (varchar)           // CLAIM | REDEMPTION | PURCHASE
+- points_earned (int)
+- points_redeemed (int)
+- store (varchar)
+- date (date)
+- expiry (date, nullable)
+- note (varchar)
+- user_id (bigint, FK -> users.id)
+
+(Optionally present in extended module)
+offer
+- id, title, description, category, image_url, cost_points, active
+
+campaign
+- id, title, description, category, image_url, cost_points, start_date, end_date, add_to_offers
+
+redemption
+- id, transaction_id (string), user_id (FK), store, date, cost_points, offer_title, confirmation_code
+
+fraud_alert
+- id, message, ref_txn_id, severity
+
+audit_log
+- id, date, user_name, action
+
+
+4) PORTS & ENV
+- Backend: http://localhost:8080
+- Frontend: http://localhost:5173
