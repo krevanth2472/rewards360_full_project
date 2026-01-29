@@ -17,3 +17,4 @@ main{flex:1;padding:20px;background:#f6f8fa}
 .flex{display:flex;gap:8px;align-items:center}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
 .tabs select{padding:8px;border-radius:6px;border:1px solid #cbd5e1}
+.footer{text-align:center}
